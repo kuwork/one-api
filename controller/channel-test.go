@@ -31,27 +31,53 @@ import (
 )
 
 func buildTestRequest(model string) *relaymodel.GeneralOpenAIRequest {
-	if model == "" {
-		model = "gpt-3.5-turbo"
-	}
 	testRequest := &relaymodel.GeneralOpenAIRequest{
-		MaxTokens: 2,
-		Model:     model,
+		Model: model,
 	}
-	testMessage := relaymodel.Message{
-		Role:    "user",
-		Content: "hi",
+
+	// 判断是否为 Embedding 模型
+	if strings.Contains(strings.ToLower(model), "embedding") ||
+		strings.HasPrefix(model, "m3e") ||
+		strings.Contains(model, "bge-") ||
+		model == "text-embedding-v1" {
+		// Embedding 请求
+		testRequest.Input = []string{"hello world"}
+	} else {
+		// 聊天请求
+		if model == "" {
+			model = "gpt-3.5-turbo"
+		}
+		testRequest.MaxTokens = 2
+		testMessage := relaymodel.Message{
+			Role:    "user",
+			Content: "hi",
+		}
+		testRequest.Messages = append(testRequest.Messages, testMessage)
 	}
-	testRequest.Messages = append(testRequest.Messages, testMessage)
+
 	return testRequest
 }
 
 func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (err error, openaiErr *relaymodel.Error) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	
+	modelName := request.Model
+	requestPath := "/v1/chat/completions"
+	mode := relaymode.ChatCompletions
+	
+	// 先判断是否为 Embedding 模型
+	if strings.Contains(strings.ToLower(modelName), "embedding") ||
+		strings.HasPrefix(modelName, "m3e") ||  // m3e 系列模型
+		strings.Contains(modelName, "bge-") ||  // bge 系列模型
+		modelName == "text-embedding-v1" {      // 其他 embedding 模型
+		mode = relaymode.Embeddings
+		requestPath = "/v1/embeddings"  // 修改请求路径
+	}
+	
 	c.Request = &http.Request{
 		Method: "POST",
-		URL:    &url.URL{Path: "/v1/chat/completions"},
+		URL:    &url.URL{Path: requestPath},  // 使用动态路径
 		Body:   nil,
 		Header: make(http.Header),
 	}
@@ -69,7 +95,6 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 		return fmt.Errorf("invalid api type: %d, adaptor is nil", apiType), nil
 	}
 	adaptor.Init(meta)
-	modelName := request.Model
 	modelMap := channel.GetModelMapping()
 	if modelName == "" || !strings.Contains(channel.Models, modelName) {
 		modelNames := strings.Split(channel.Models, ",")
@@ -82,7 +107,8 @@ func testChannel(channel *model.Channel, request *relaymodel.GeneralOpenAIReques
 	}
 	meta.OriginModelName, meta.ActualModelName = request.Model, modelName
 	request.Model = modelName
-	convertedRequest, err := adaptor.ConvertRequest(c, relaymode.ChatCompletions, request)
+	
+	convertedRequest, err := adaptor.ConvertRequest(c, mode, request)
 	if err != nil {
 		return err, nil
 	}

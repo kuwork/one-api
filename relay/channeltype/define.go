@@ -48,5 +48,6 @@ const (
 	SiliconFlow
 	XAI
 	Replicate
+	MokaAI
 	Dummy
 )

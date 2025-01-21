@@ -47,6 +47,12 @@ export const CHANNEL_OPTIONS = {
     value: 28,
     color: 'warning'
   },
+  47: {
+    key: 47,
+    text: 'Moka AI',
+    value: 47,
+    color: 'warning'
+  },
   40: {
     key: 40,
     text: '字节跳动豆包',
@@ -185,9 +191,15 @@ export const CHANNEL_OPTIONS = {
     value: 45,
     color: 'primary'
   },
-  45: {
+  46: {
     key: 46,
     text: 'Replicate',
+    value: 46,
+    color: 'primary'
+  },
+  47: {
+    key: 47,
+    text: 'MokaAI',
     value: 46,
     color: 'primary'
   },
